@@ -3,6 +3,7 @@
 <form class="max-w-md mx-auto my-3" action="" method="POST">
   <!-- Book Title -->
   {% csrf_token %}
+  <input type="text" name="id" value="{{book.id}}" hidden>
   <div class="relative z-0 w-full mb-5 group">
     <input
       type="text"
