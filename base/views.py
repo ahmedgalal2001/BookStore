@@ -1,53 +1,30 @@
 from django.shortcuts import render,redirect , get_object_or_404
+from django.contrib.auth import logout, authenticate, login
 from .models import Book
-
-books = [
-    {
-        "book_id": 1,
-        "title": "Book Title",
-        "author": "Book Author",
-        "publisher": "Book Publisher",
-        "publication_date": "2020-01-01",
-        "image": "https://cdn.pixabay.com/photo/2015/11/19/21/10/glasses-1052010_640.jpg",
-        "price": 19.99,
-        "genre": "Fiction",
-        "rating": 4.5,
-        "views": 100,
-        "description": "A brief description of the book."
-    },
-]
-
-
+from django.contrib.auth.models import User
+from .forms import BookForm
 def bookstore(request):
-    books = Book.objects.all()
+    books = Book.objects.all().filter(user=request.user)
     context = {'books': books}
     return render(request, "base/bookstore.html" , context=context)
 
 
-
-
-
-
 def bookstoreAdd(request):
     if request.method == 'POST':
-        try:
-            book = Book.objects.create(
-                title=request.POST.get('title'),
-                author=request.POST.get('author'),
-                publisher=request.POST.get('publisher'),
-                publication_date=request.POST.get('publication_date'),
-                image=request.POST.get('image'),
-                price=request.POST.get('price'),
-                genre=request.POST.get('genre'),
-                description=request.POST.get('description')
-                )
-            book.save()
-            return redirect('/')
-        except ValueError as e:
-            print(f"Data conversion error: {e}")
-            return render(request, 'base/bookstoreadd.html', {'error': 'Invalid data format. Please check your inputs.'})
-    return render(request, 'base/bookstoreadd.html')
-
+        form = BookForm(request.POST)
+        if form.is_valid():
+            # Get the currently logged-in user
+            user = request.user
+            # Create a new book instance from the form data
+            new_book = form.save(commit=False)
+            # Set the user field of the book to the currently logged-in user
+            new_book.user = user
+            # Save the book instance
+            new_book.save()
+            return redirect('bookstore')  # Redirect to bookstore or any other page
+    else:
+        form = BookForm()
+    return render(request, 'base/bookstoreadd.html', {'form': form})
 
 def bookstoreShow(request, book_id):
     book = get_object_or_404(Book, pk=book_id)
@@ -82,3 +59,44 @@ def bookstoreDelete(request, book_id):
     book = get_object_or_404(Book, pk=book_id)
     book.delete()
     return redirect('/')
+
+from django.contrib.auth import authenticate, login
+
+def userlogin(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            next_page = request.GET.get('next', 'bookstore')
+            return redirect(next_page)
+        else:
+            # Authentication failed
+            return render(request, 'base/userlogin.html', {'error': 'Invalid username or password.'})
+    return render(request, 'base/userlogin.html')
+
+
+def userlogout(request):
+    print("userlogout")
+    if request.method == 'POST':
+        logout(request)
+        return redirect('/')
+    return redirect('/')
+def userregister(request):
+    try:
+        if request.method == 'POST':
+            user = User.objects.create(
+                username=request.POST.get('username'),
+                password=request.POST.get('password'),
+                is_superuser=False,
+                email=request.POST.get('email'),
+                first_name=request.POST.get('fname'),
+                last_name=request.POST.get('lname')
+            )
+            user.save()
+            return redirect('/user/login')
+    except ValueError as e:
+        print(f"Data conversion error: {e}")
+        return render(request, 'base/userregisterion.html', {'error': 'Invalid data format. Please check your inputs.'})
+    return render(request, 'base/userregisterion.html')
